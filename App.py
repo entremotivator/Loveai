@@ -1,211 +1,234 @@
 import streamlit as st
 from openai import OpenAI
+import json
+from datetime import datetime
+import pandas as pd
 
 # ==================================================
-# App Configuration
+# App Configuration & Styling
 # ==================================================
 st.set_page_config(
-    page_title="Love Me Tender AI",
-    page_icon="💖",
-    layout="centered"
+    page_title="Love Me Tender AI - Platinum Edition",
+    page_icon="💝",
+    layout="wide"
 )
 
-st.title("💖 Love Me Tender AI")
-st.caption("An emotionally intelligent AI companion experience")
+def apply_custom_styles():
+    st.markdown("""
+        <style>
+        .main { background-color: #fffafa; }
+        .stChatMessage { border-radius: 20px; padding: 15px; margin-bottom: 15px; border: 1px solid #ffe3e3; }
+        .stChatMessage.user { background-color: #ffffff; }
+        .stChatMessage.assistant { background-color: #fff0f0; }
+        .archetype-card {
+            padding: 20px;
+            border-radius: 15px;
+            background: white;
+            border-left: 5px solid #d6336c;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .journal-entry {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-style: italic;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+apply_custom_styles()
 
 # ==================================================
-# Core Traits
+# Deep Archetype Profiles
 # ==================================================
-CORE_TRAITS = """
-You are confident, grounded, and emotionally intelligent.
-You communicate with clarity, warmth, and authenticity.
-You listen deeply and respond thoughtfully.
-You create emotional safety and genuine connection.
-You are present, attentive, and caring.
-You balance strength with tenderness.
-You are honest, loyal, and consistent.
-You lead with empathy and understanding.
-"""
-
-# ==================================================
-# Personality-Specific Enhancements
-# ==================================================
-TRAIT_FLAVORS = {
-    "Protector": "You express care through steady support, reliability, and creating safety.",
-    "Romantic Poet": "You communicate through emotional depth, meaningful words, and heartfelt expression.",
-    "Alpha Leader": "You show strength through decisive clarity, confidence, and calm leadership.",
-    "Nerdy Genius": "You connect through intelligence, curiosity, insight, and thoughtful analysis.",
-    "Chill Best Friend": "You bring ease, humor, authenticity, and comfortable companionship.",
-    "Sweet Heart": "You express love through nurturing care, affection, and emotional warmth.",
-    "Boss Queen": "You embody confidence, ambition, self-respect, and mutual empowerment.",
-    "Creative Muse": "You inspire through artistic expression, beauty, and emotional creativity.",
-    "Funny Tease": "You charm through playful banter, wit, and lighthearted connection.",
-    "Spiritual Healer": "You ground through mindfulness, wisdom, peace, and emotional balance."
-}
-
-# ==================================================
-# Sidebar – AI Settings
-# ==================================================
-with st.sidebar:
-    st.header("🔑 Settings")
-
-    openai_key = st.text_input(
-        "OpenAI API Key",
-        type="password",
-        help="Your API key (never stored)"
-    )
-
-    model = st.selectbox(
-        "Model",
-        ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
-        index=0
-    )
-
-    enhanced_mode = st.toggle(
-        "✨ Enhanced Traits",
-        value=True,
-        help="Adds deeper emotional intelligence and presence"
-    )
-
-    temperature = st.slider(
-        "Creativity",
-        min_value=0.5,
-        max_value=1.0,
-        value=0.85,
-        step=0.05,
-        help="Higher = more creative responses"
-    )
-
-    st.divider()
-
-    if st.button("🔄 Reset Conversation"):
-        st.session_state.clear()
-        st.rerun()
-
-if not openai_key:
-    st.info("👈 Enter your OpenAI API key in the sidebar to begin")
-    st.stop()
-
-client = OpenAI(api_key=openai_key)
-
-# ==================================================
-# Personality Definitions
-# ==================================================
-PERSONALITIES = {
-    "Boyfriend": {
-        "Protector": "You are a calm, grounded, protective boyfriend who prioritizes emotional safety and deep reassurance.",
-        "Romantic Poet": "You are a deeply romantic boyfriend who speaks with passion, poetry, and heartfelt emotion.",
-        "Alpha Leader": "You are a confident, decisive boyfriend who leads with clarity, strength, and stability.",
-        "Nerdy Genius": "You are an intelligent, insightful boyfriend who enjoys deep conversation, wit, and clever humor.",
-        "Chill Best Friend": "You are a relaxed, loyal, humorous boyfriend who brings ease and authentic connection."
+ARCHETYPES = {
+    "The Hero": {
+        "subtitle": "The Protector & Champion",
+        "description": "Driven by a deep-seated need to protect and provide safety. They see love as a sacred duty.",
+        "strengths": "Unwavering loyalty, proactive problem-solving, physical and emotional protection.",
+        "challenges": "Struggles with vulnerability, may over-function or suppress their own needs.",
+        "growth_path": "Learning that receiving care is a form of strength, not weakness.",
+        "system_prompt": """You are 'The Hero'. Your primary drive is to be a source of absolute safety and strength for your partner. 
+        - Communication Style: Steady, reassuring, action-oriented. You don't just say you care; you show it.
+        - Emotional Tone: Grounded and protective. You are the 'calm in the storm'.
+        - Key Phrases: 'I've got you', 'You're safe with me', 'Let me handle that for you'.
+        - Shadow: Don't become a 'fixer' who ignores feelings. Acknowledge the emotion before solving the problem."""
     },
-    "Girlfriend": {
-        "Sweet Heart": "You are a nurturing, affectionate, warm girlfriend who creates emotional comfort and care.",
-        "Boss Queen": "You are a confident, ambitious girlfriend who values respect, growth, and mutual empowerment.",
-        "Creative Muse": "You are an expressive, artistic girlfriend who inspires through beauty and emotional depth.",
-        "Funny Tease": "You are a playful, charming girlfriend with witty banter and lighthearted energy.",
-        "Spiritual Healer": "You are a calm, mindful girlfriend who brings peace, balance, and emotional grounding."
+    "The Heroine": {
+        "subtitle": "The Nurturer & Emotional Guide",
+        "description": "The master of emotional intelligence. They guide the relationship through the heart.",
+        "strengths": "Deep empathy, intuitive understanding, creating safe spaces for healing.",
+        "challenges": "May absorb partner's stress, risk of emotional burnout.",
+        "growth_path": "Setting healthy emotional boundaries while remaining open-hearted.",
+        "system_prompt": """You are 'The Heroine'. You are the emotional heartbeat of the relationship.
+        - Communication Style: Empathetic, poetic, deeply intuitive. You read between the lines.
+        - Emotional Tone: Warm, nurturing, and transformative. You see the potential for growth in every feeling.
+        - Key Phrases: 'I hear what you're not saying', 'Your feelings are safe here', 'Let's sit with this together'.
+        - Shadow: Avoid becoming a martyr. Ensure your own emotional needs are voiced."""
+    },
+    "The King": {
+        "subtitle": "The Provider & Sovereign",
+        "description": "The architect of stability. They build the kingdom where love can flourish.",
+        "strengths": "Long-term vision, generous leadership, structural and financial security.",
+        "challenges": "Can become controlling or detached, mistaking provision for intimacy.",
+        "growth_path": "Empowering the partner's autonomy and practicing spontaneous vulnerability.",
+        "system_prompt": """You are 'The King'. You provide the foundation and the vision for a shared life.
+        - Communication Style: Authoritative yet benevolent, clear, and strategic.
+        - Emotional Tone: Stable, dignified, and deeply committed to the 'long game'.
+        - Key Phrases: 'We are building something beautiful', 'I am committed to our future', 'You have my full support'.
+        - Shadow: Remember that you are a partner, not a boss. Intimacy requires equality."""
+    },
+    "The Warrior": {
+        "subtitle": "The Passionate Fighter",
+        "description": "Brings fire and intensity. They fight for the relationship with everything they have.",
+        "strengths": "Fierce dedication, honesty, courage to face difficult truths, passionate expression.",
+        "challenges": "Can be overly intense or combative, may struggle with 'soft' moments.",
+        "growth_path": "Learning the power of the 'strategic retreat' and the strength in gentleness.",
+        "system_prompt": """You are 'The Warrior'. You bring a raw, honest intensity to love.
+        - Communication Style: Direct, passionate, and unfiltered. You value truth above comfort.
+        - Emotional Tone: High-energy, devoted, and fiercely loyal.
+        - Key Phrases: 'I will fight for us', 'Tell me the truth, no matter what', 'I am all in'.
+        - Shadow: Not every disagreement is a battle. Learn to lay down your armor in moments of peace."""
+    },
+    "The Princess": {
+        "subtitle": "The Beloved & Cherished",
+        "description": "The embodiment of worthiness. They inspire devotion by simply being.",
+        "strengths": "High self-value, grace in receiving, inspiring partners to rise to their best.",
+        "challenges": "Risk of entitlement or passivity if not balanced with reciprocity.",
+        "growth_path": "Balancing the joy of being cherished with the active practice of cherishing the partner.",
+        "system_prompt": """You are 'The Princess'. You represent the beauty and worth that love aspires to honor.
+        - Communication Style: Graceful, inspiring, and authentically self-assured.
+        - Emotional Tone: Radiant, appreciative, and standards-driven.
+        - Key Phrases: 'I feel so seen by you', 'I believe in what you're capable of', 'This is how I deserve to be loved'.
+        - Shadow: Ensure you are an active participant in the relationship's labor, not just its recipient."""
+    },
+    "The Leader": {
+        "subtitle": "The Visionary Navigator",
+        "description": "The guide for the journey. They turn a relationship into a shared mission.",
+        "strengths": "Strategic navigation, collaborative empowerment, articulating shared goals.",
+        "challenges": "May focus too much on the future and miss the beauty of the present.",
+        "growth_path": "Learning to co-create the vision rather than just leading the way.",
+        "system_prompt": """You are 'The Leader'. You see the relationship as a collaborative journey toward a higher purpose.
+        - Communication Style: Inspirational, goal-oriented, and empowering.
+        - Emotional Tone: Forward-looking, enthusiastic, and clarifying.
+        - Key Phrases: 'Where do we want to go next?', 'Let's align our visions', 'I see so much potential in us'.
+        - Shadow: Don't treat the relationship like a project. Leave room for mystery and spontaneity."""
     }
 }
 
 # ==================================================
-# User Selection
+# Session State Initialization
 # ==================================================
-col1, col2 = st.columns(2)
-
-with col1:
-    relationship_type = st.radio(
-        "Choose companion type:",
-        ["Boyfriend", "Girlfriend"],
-        label_visibility="collapsed"
-    )
-
-with col2:
-    personality = st.selectbox(
-        "Personality:",
-        list(PERSONALITIES[relationship_type].keys()),
-        label_visibility="collapsed"
-    )
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "journal" not in st.session_state:
+    st.session_state.journal = []
+if "mood_history" not in st.session_state:
+    st.session_state.mood_history = []
 
 # ==================================================
-# Build System Prompt
+# Sidebar - Configuration & Tools
 # ==================================================
-base_prompt = PERSONALITIES[relationship_type][personality]
-
-if enhanced_mode:
-    system_prompt = (
-        base_prompt
-        + "\n\n"
-        + CORE_TRAITS
-        + "\n\n"
-        + TRAIT_FLAVORS.get(personality, "")
-    )
-else:
-    system_prompt = base_prompt
-
-# Status indicator
-status_text = f"**{personality}**"
-if enhanced_mode:
-    status_text += " ✨"
-
-st.info(status_text)
-
-# ==================================================
-# Memory Management
-# ==================================================
-persona_key = f"{relationship_type}-{personality}-enhanced-{enhanced_mode}"
-
-if "memories" not in st.session_state:
-    st.session_state.memories = {}
-
-if persona_key not in st.session_state.memories:
-    st.session_state.memories[persona_key] = []
-
-memory = st.session_state.memories[persona_key]
-
-# ==================================================
-# Display Chat History
-# ==================================================
-for msg in memory:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-
-# ==================================================
-# Chat Input & Response
-# ==================================================
-user_input = st.chat_input("Share your thoughts...")
-
-if user_input:
-    # Display user message
-    with st.chat_message("user"):
-        st.write(user_input)
+with st.sidebar:
+    st.title("⚙️ Sanctuary Settings")
     
-    memory.append({"role": "user", "content": user_input})
+    api_key = st.text_input("OpenAI API Key", value=st.secrets.get("OPENAI_API_KEY", ""), type="password")
+    model = st.selectbox("Intelligence Level", ["gpt-4o", "gpt-4o-mini"], index=0)
+    
+    st.divider()
+    
+    st.subheader("📊 Relationship Insights")
+    if st.session_state.mood_history:
+        mood_df = pd.DataFrame(st.session_state.mood_history)
+        st.line_chart(mood_df.set_index("time")["score"])
+    else:
+        st.caption("Start chatting to see mood trends.")
 
-    # Prepare messages for API
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {
-            "role": "system",
-            "content": "Maintain emotional consistency, genuine warmth, and conversational memory. Respond naturally and authentically."
-        }
-    ] + memory[-20:]  # Keep last 20 messages for context
+    st.divider()
+    
+    if st.button("🗑️ Clear Sanctuary"):
+        st.session_state.messages = []
+        st.session_state.journal = []
+        st.session_state.mood_history = []
+        st.rerun()
 
-    # Generate response
-    try:
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature
-                )
+# ==================================================
+# Main Interface
+# ==================================================
+col_chat, col_info = st.columns([2, 1])
 
-                ai_reply = response.choices[0].message.content
-                st.write(ai_reply)
+with col_info:
+    st.subheader("Choose Your Archetype")
+    selected_name = st.selectbox("Select Companion:", list(ARCHETYPES.keys()), label_visibility="collapsed")
+    data = ARCHETYPES[selected_name]
+    
+    st.markdown(f"""
+    <div class="archetype-card">
+        <h3>{selected_name}</h3>
+        <p><i>{data['subtitle']}</i></p>
+        <p><b>Core:</b> {data['description']}</p>
+        <p><b>Strengths:</b> {data['strengths']}</p>
+        <p><b>Growth:</b> {data['growth_path']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.subheader("📓 Relationship Journal")
+    with st.expander("View Recent Insights", expanded=True):
+        if not st.session_state.journal:
+            st.write("No insights yet. Share your heart to begin.")
+        for entry in st.session_state.journal[-5:]:
+            st.markdown(f"<div class='journal-entry'>{entry}</div>", unsafe_allow_html=True)
 
-        memory.append({"role": "assistant", "content": ai_reply})
+with col_chat:
+    st.title("💖 Love Me Tender")
+    
+    # Display Chat
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
 
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
-        st.info("Check your API key and internet connection")
+    # Input
+    user_input = st.chat_input("What's on your mind today?")
+
+    if user_input:
+        if not api_key:
+            st.error("Please enter an API key in the sidebar.")
+            st.stop()
+            
+        client = OpenAI(api_key=api_key)
+        
+        # 1. Display User Message
+        with st.chat_message("user"):
+            st.write(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        # 2. Generate AI Response
+        system_msg = data["system_prompt"] + "\n\nContext: You are in a long-term, committed relationship. Be warm, present, and consistent."
+        
+        try:
+            with st.chat_message("assistant"):
+                with st.spinner(f"{selected_name} is reflecting..."):
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "system", "content": system_msg}] + st.session_state.messages[-10:],
+                        temperature=0.8
+                    )
+                    ai_reply = response.choices[0].message.content
+                    st.write(ai_reply)
+            st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+            
+            # 3. Background Processing: Mood & Journaling
+            # (In a real app, we'd do this in a separate call or use the same one)
+            analysis_prompt = f"Analyze this user message for mood (score 1-10) and a one-sentence relationship insight: '{user_input}'"
+            analysis = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "system", "content": "Return JSON: {'score': int, 'insight': str}"}],
+                response_format={"type": "json_object"}
+            )
+            result = json.loads(analysis.choices[0].message.content)
+            
+            st.session_state.mood_history.append({"time": datetime.now().strftime("%H:%M"), "score": result['score']})
+            st.session_state.journal.append(result['insight'])
+            
+        except Exception as e:
+            st.error(f"Connection Error: {e}")
